@@ -1,13 +1,14 @@
-# --- utils.py (v6.1: 完美防呆版 - 自動跳過休市日與週末) ---
+# --- utils.py (v6.1: 完美防呆版 - 自动跳过休市日与周末) ---
 import os
 import requests
 import datetime
 import csv
 import re
-import pandas as pd # 需要引入 pandas 來讀取 CSV
-import yfinance as yf # 需要引入 yf 來確認真實日期
+import pandas as pd  # 需要引入 pandas 来读取 CSV
+import yfinance as yf  # 需要引入 yf 来确认真实日期
 from config import INDICATORS, IMAGES
-import data_fetchers as df    
+import data_fetchers as df
+
 
 def extract_numeric_value(text):
     if not isinstance(text, str): return ""
@@ -16,47 +17,48 @@ def extract_numeric_value(text):
     if match: return match.group()
     return ""
 
+
 def get_indicator_status(key, value_in):
     value_str = value_in
     if key == 'AAII' and isinstance(value_in, tuple) and len(value_in) >= 3:
         value_str = value_in[2]
 
     if not value_str or "Error" in str(value_str) or "N/A" in str(value_str):
-        return "⚠️ 無法判讀"
-    
+        return "⚠️ 无法判读"
+
     cfg = INDICATORS.get(key)
     if not cfg: return "⚪ 中性"
 
     try:
-        clean_val = str(value_str).replace('%','').replace('+','').replace(',','').split()[0]
+        clean_val = str(value_str).replace('%', '').replace('+', '').replace(',', '').split()[0]
         val = float(clean_val)
         thresholds = cfg['thresholds']
-        
+
         if thresholds == 'ma_trend':
-            if "(Above)" in str(value_str): return "🟢 多頭排列" if key != 'HYG' else "🟢 資金流入"
-            if "(Below)" in str(value_str): return "🔴 轉弱/空頭" if key != 'HYG' else "🔴 資金流出"
+            if "(Above)" in str(value_str): return "🟢 多头排列" if key != 'HYG' else "🟢 资金流入"
+            if "(Below)" in str(value_str): return "🔴 转弱/空头" if key != 'HYG' else "🔴 资金流出"
             return "⚪ 中性"
-            
+
         if thresholds == 'arrow_trend':
             if "↗️" in str(value_str): return "🟢 Risk On"
             if "↘️" in str(value_str): return "🔴 Risk Off"
             return "⚪ 中性"
 
         g_limit, r_limit = thresholds
-        
+
         if key == 'BTC':
-            if val > g_limit: return "🟢 大漲 (Risk On)"
+            if val > g_limit: return "🟢 大涨 (Risk On)"
             if val < r_limit: return "🔴 大跌 (Risk Off)"
-            return "⚪ 波動正常"
-        
+            return "⚪ 波动正常"
+
         if key == 'PUT_CALL':
-            if val > g_limit: return "🟢 看空過度 (偏多)"
-            if val < r_limit: return "🔴 看多過度 (偏空)"
+            if val > g_limit: return "🟢 看空过度 (偏多)"
+            if val < r_limit: return "🔴 看多过度 (偏空)"
             return "⚪ 中性"
-            
+
         if key == 'VIX':
-            if val > g_limit: return "🟢 市場恐慌 (偏多)"
-            if val < r_limit: return "🔴 市場自滿 (偏空)"
+            if val > g_limit: return "🟢 市场恐慌 (偏多)"
+            if val < r_limit: return "🔴 市场自满 (偏空)"
             return "⚪ 中性"
 
         if cfg.get('inverse'):
@@ -67,7 +69,9 @@ def get_indicator_status(key, value_in):
             if val <= r_limit: return "🔴 偏空"
 
         return "⚪ 中性"
-    except: return "⚪ 中性"
+    except:
+        return "⚪ 中性"
+
 
 def calculate_summary(results):
     bulls = 0
@@ -76,11 +80,14 @@ def calculate_summary(results):
         status = get_indicator_status(key, val)
         if "🟢" in status: bulls += 1
         if "🔴" in status: bears += 1
-    
-    concl = "⚪ 市場分歧，建議觀望"
-    if bulls > bears: concl = "🟢 市場偏向恐懼/機會 (Risk On)"
-    elif bears > bulls: concl = "🔴 市場偏向貪婪/風險 (Risk Off)"
+
+    concl = "⚪ 市场分歧，建议观望"
+    if bulls > bears:
+        concl = "🟢 市场偏向恐慌/机会 (Risk On)"
+    elif bears > bulls:
+        concl = "🔴 市场偏向贪婪/风险 (Risk Off)"
     return f"**🟢 多方**: {bulls} | **🔴 空方**: {bears}\n👉 {concl}"
+
 
 def send_discord(results, market_text, summary):
     url = os.environ.get("DISCORD_WEBHOOK_URL")
@@ -92,27 +99,27 @@ def send_discord(results, market_text, summary):
         status = get_indicator_status(key, val)
         if "🟢" in status: bulls += 1
         if "🔴" in status: bears += 1
-    
-    embed_color = 0x95a5a6 
+
+    embed_color = 0x95a5a6
     thumbnail_url = IMAGES['NEUTRAL']
 
-    if bulls > bears: 
-        embed_color = 0x2ecc71 
+    if bulls > bears:
+        embed_color = 0x2ecc71
         thumbnail_url = IMAGES['BULL']
-    elif bears > bulls: 
-        embed_color = 0xe74c3c 
+    elif bears > bulls:
+        embed_color = 0xe74c3c
         thumbnail_url = IMAGES['BEAR']
 
     categories = {
-        'macro': '🌊 宏觀與資金 (Macro)',
-        'struct': '🏗️ 結構與板塊 (Struct)',
-        'tech': '🌡️ 技術與情緒 (Tech)',
-        'fund': '🐳 籌碼與內資 (Fund)'
+        'macro': '🌊 宏观与资金 (Macro)',
+        'struct': '🏗️ 结构与板块 (Struct)',
+        'tech': '🌡️ 技术与情绪 (Tech)',
+        'fund': '🐳 筹码与内资 (Fund)'
     }
-    
+
     fields = []
-    fields.append({"name": "🔮 市場情緒總結", "value": summary, "inline": False})
-    fields.append({"name": "📊 美股大盤指數", "value": market_text, "inline": False})
+    fields.append({"name": "🔮 市场情绪总结", "value": summary, "inline": False})
+    fields.append({"name": "📊 美股大盘指数", "value": market_text, "inline": False})
     fields.append({"name": "\u200b", "value": "\u200b", "inline": False})
 
     cat_items = list(categories.items())
@@ -126,98 +133,102 @@ def send_discord(results, market_text, summary):
                 display_val = f"多{val[0]}% | 空{val[1]}%"
             status = get_indicator_status(key, val)
             content += f"> {cfg['name']}: **{display_val}** ({status})\n"
-            
+
         fields.append({"name": cat_name, "value": content, "inline": False})
         if i < len(cat_items) - 1:
             fields.append({"name": "\u200b", "value": "\u200b", "inline": False})
 
     data = {
         "embeds": [{
-            "title": f"📅 每日財經情緒日報 ({datetime.datetime.now().strftime('%Y-%m-%d')})",
+            "title": f"📅 每日财经情绪日报 ({datetime.datetime.now().strftime('%Y-%m-%d')})",
             "color": embed_color,
             "fields": fields,
-            "image": {"url": thumbnail_url}, 
-            "footer": {"text": "財經 Discord 機器人"},
+            "image": {"url": thumbnail_url},
+            "footer": {"text": "财经 Discord 机器人"},
             "timestamp": datetime.datetime.now().isoformat()
         }]
     }
-    try: requests.post(url, json=data)
-    except Exception as e: print(f"Discord Error: {e}")
+    try:
+        requests.post(url, json=data)
+    except Exception as e:
+        print(f"Discord Error: {e}")
+
 
 def save_csv(results):
     try:
         folder = "data"
         if not os.path.exists(folder): os.makedirs(folder)
         file = "data/history.csv"
-        
-        # 1. 取得市場真實交易日期 (這是防呆的核心)
+
+        # 1. 取得市场真实交易日期 (这是防呆的核心)
         try:
-            # 抓取 SPX 歷史資料來確認「最新的有效交易日」
+            # 抓取 SPX 历史资料来确认“最新的有效交易日”
             t = yf.Ticker("^GSPC")
-            # 抓 5 天是為了避免長假 (如聖誕+週末)
+            # 抓 5 天是为了避免长假 (如圣诞+周末)
             hist = t.history(period="5d")
-            
+
             if not hist.empty:
-                # 取得最後一筆資料的日期 (格式: YYYY-MM-DD)
+                # 取得最后一笔资料的日期 (格式: YYYY-MM-DD)
                 last_trade_date = hist.index[-1].strftime("%Y-%m-%d")
             else:
-                # 萬一 yfinance 掛了，只好退回到系統日期 (極少發生)
-                print("⚠️ 無法取得市場日期，使用系統日期")
+                # 万一 yfinance 挂了，只好退回到系统日期 (极少发生)
+                print("⚠️ 无法取得市场日期，使用系统日期")
                 last_trade_date = datetime.datetime.now().strftime("%Y-%m-%d")
         except Exception as e:
-            print(f"❌ 日期偵測失敗: {e}")
+            print(f"❌ 日期侦测失败: {e}")
             last_trade_date = datetime.datetime.now().strftime("%Y-%m-%d")
 
-        print(f"📅 偵測到最新交易日為: {last_trade_date}")
+        print(f"📅 侦测到最新交易日为: {last_trade_date}")
 
-        # 2. 檢查 CSV 是否已存在該日期 (去重複)
+        # 2. 检查 CSV 是否已存在该日期 (去重复)
         if os.path.exists(file):
             try:
-                # 讀取現有 CSV
+                # 读取现有 CSV
                 existing_df = pd.read_csv(file)
-                # 檢查 Date 欄位
+                # 检查 Date 栏位
                 if 'Date' in existing_df.columns:
                     if last_trade_date in existing_df['Date'].values.astype(str):
-                        print(f"🛑 日期 {last_trade_date} 已存在，今日不寫入 (可能是週末或休市)。")
-                        return # <--- 關鍵！直接結束函式，不存檔
+                        print(f"🛑 日期 {last_trade_date} 已存在，今日不写入 (可能是周末或休市)。")
+                        return  # <--- 关键！直接结束函数，不存档
             except Exception as e:
-                print(f"⚠️ 讀取 CSV 檢查時發生錯誤 (可能檔案損壞，將嘗試附加): {e}")
+                print(f"⚠️ 读取 CSV 检查时发生错误 (可能档案损坏，将尝试附加): {e}")
 
-        # 3. 準備數據 (AI 訓練格式)
+        # 3. 准备数据 (AI 训练格式)
         fieldnames = [
-            'Date', 
+            'Date',
             'SPX_Open', 'SPX_High', 'SPX_Low', 'SPX_Close', 'SPX_Volume',
             'NDX_Open', 'NDX_High', 'NDX_Low', 'NDX_Close', 'NDX_Volume',
             '10Y_Yield', '3M_Yield',
-            'RSI', 'VIX', 'CNN', 'Put_Call', 
-            'DXY', 'BTC_Chg', 'HYG_Price', 
-            'Risk_Ratio', 'IWM_Price', 'SOXX_Price', 
+            'RSI', 'VIX', 'CNN', 'Put_Call',
+            'DXY', 'BTC_Chg', 'HYG_Price',
+            'Risk_Ratio', 'IWM_Price', 'SOXX_Price',
             'NAAIM', 'SKEW', 'AAII_Diff', 'Above_200MA'
         ]
-        
+
         market_data = df.fetch_full_market_data()
         short_yield = df.fetch_short_term_yield()
         aaii_raw = results.get('AAII', "")
-        aaii_val = f"{aaii_raw[2]:.1f}" if isinstance(aaii_raw, tuple) and len(aaii_raw) >= 3 else extract_numeric_value(str(aaii_raw))
+        aaii_val = f"{aaii_raw[2]:.1f}" if isinstance(aaii_raw, tuple) and len(
+            aaii_raw) >= 3 else extract_numeric_value(str(aaii_raw))
 
         row = {
-            'Date': last_trade_date, # [使用真實交易日]
-            
+            'Date': last_trade_date,  # [使用真实交易日]
+
             'SPX_Open': market_data.get('SPX_Open', ''),
             'SPX_High': market_data.get('SPX_High', ''),
-            'SPX_Low':  market_data.get('SPX_Low', ''),
-            'SPX_Close':market_data.get('SPX_Close', ''),
-            'SPX_Volume':market_data.get('SPX_Volume', ''),
-            
+            'SPX_Low': market_data.get('SPX_Low', ''),
+            'SPX_Close': market_data.get('SPX_Close', ''),
+            'SPX_Volume': market_data.get('SPX_Volume', ''),
+
             'NDX_Open': market_data.get('NDX_Open', ''),
             'NDX_High': market_data.get('NDX_High', ''),
-            'NDX_Low':  market_data.get('NDX_Low', ''),
-            'NDX_Close':market_data.get('NDX_Close', ''),
-            'NDX_Volume':market_data.get('NDX_Volume', ''),
-            
+            'NDX_Low': market_data.get('NDX_Low', ''),
+            'NDX_Close': market_data.get('NDX_Close', ''),
+            'NDX_Volume': market_data.get('NDX_Volume', ''),
+
             '10Y_Yield': extract_numeric_value(str(results.get('BOND_10Y', ''))),
-            '3M_Yield':  extract_numeric_value(short_yield),
-            
+            '3M_Yield': extract_numeric_value(short_yield),
+
             'RSI': extract_numeric_value(str(results.get('RSI', ''))),
             'VIX': extract_numeric_value(str(results.get('VIX', ''))),
             'CNN': extract_numeric_value(str(results.get('CNN', ''))),
@@ -239,7 +250,8 @@ def save_csv(results):
             if not os.path.exists(file) or os.stat(file).st_size == 0:
                 writer.writeheader()
             writer.writerow(row)
-            
-        print(f"💾 數據已儲存至: {file}")
 
-    except Exception as e: print(f"CSV Error: {e}")
+        print(f"💾 数据已储存至: {file}")
+
+    except Exception as e:
+        print(f"CSV Error: {e}")
