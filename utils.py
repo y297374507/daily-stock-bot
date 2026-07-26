@@ -83,7 +83,7 @@ def calculate_summary(results):
     return f"**🟢 多方**: {bulls} | **🔴 空方**: {bears}\n👉 {concl}"
 
 def send_discord(results, market_text, summary):
-    url = os.environ.get("DISCORD_WEBHOOK_URL")
+    url = os.environ.get("WECHAT_WEBHOOK_URL")
     if not url: return
 
     bulls = 0
