@@ -40,7 +40,7 @@ if __name__ == "__main__":
     print("\n" + summary)
     
     # 4. 發送 Discord
-    utils.send_discord(results, market_text, summary)
+    utils.send_wechat(results, market_text, summary)
     
     # 5. 存檔 CSV (關鍵測試點)
     print("正在寫入 CSV...")
