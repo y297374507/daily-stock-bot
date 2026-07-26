@@ -82,8 +82,8 @@ def calculate_summary(results):
     elif bears > bulls: concl = "🔴 市場偏向貪婪/風險 (Risk Off)"
     return f"**🟢 多方**: {bulls} | **🔴 空方**: {bears}\n👉 {concl}"
 
-def send_wechat(results, market_text, summary):
-    url = os.environ.get("WECHAT_WEBHOOK_URL")
+def send_discord(results, market_text, summary):
+    url = os.environ.get("DISCORD_WEBHOOK_URL")
     if not url: return
 
     bulls = 0
