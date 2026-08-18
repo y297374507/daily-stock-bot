@@ -1,20 +1,22 @@
-# --- utils.py (v6.1: 完美防呆版 - 自动跳过休市日与周末) ---
+# --- utils.py (v6.2: 美股收盘后 + index.html 简体中文仪表板) ---
 import os
 import requests
 import datetime
 import csv
 import re
-import pandas as pd  # 需要引入 pandas 来读取 CSV
-import yfinance as yf  # 需要引入 yf 来确认真实日期
+import pandas as pd
+import yfinance as yf
 from config import INDICATORS, IMAGES
 import data_fetchers as df
 
 
 def extract_numeric_value(text):
-    if not isinstance(text, str): return ""
+    if not isinstance(text, str):
+        return ""
     clean_text = text.replace('%', '').replace('+', '').replace(',', '')
     match = re.search(r"[-+]?\d*\.\d+|\d+", clean_text)
-    if match: return match.group()
+    if match:
+        return match.group()
     return ""
 
 
@@ -22,52 +24,56 @@ def get_indicator_status(key, value_in):
     value_str = value_in
     if key == 'AAII' and isinstance(value_in, tuple) and len(value_in) >= 3:
         value_str = value_in[2]
-
     if not value_str or "Error" in str(value_str) or "N/A" in str(value_str):
         return "⚠️ 无法判读"
-
     cfg = INDICATORS.get(key)
-    if not cfg: return "⚪ 中性"
-
+    if not cfg:
+        return "⚪ 中性"
     try:
         clean_val = str(value_str).replace('%', '').replace('+', '').replace(',', '').split()[0]
         val = float(clean_val)
         thresholds = cfg['thresholds']
-
         if thresholds == 'ma_trend':
-            if "(Above)" in str(value_str): return "🟢 多头排列" if key != 'HYG' else "🟢 资金流入"
-            if "(Below)" in str(value_str): return "🔴 转弱/空头" if key != 'HYG' else "🔴 资金流出"
+            if "(Above)" in str(value_str):
+                return "🟢 多头排列" if key != 'HYG' else "🟢 资金流入"
+            if "(Below)" in str(value_str):
+                return "🔴 转弱/空头" if key != 'HYG' else "🔴 资金流出"
             return "⚪ 中性"
-
         if thresholds == 'arrow_trend':
-            if "↗️" in str(value_str): return "🟢 Risk On"
-            if "↘️" in str(value_str): return "🔴 Risk Off"
+            if "↗️" in str(value_str):
+                return "🟢 Risk On"
+            if "↘️" in str(value_str):
+                return "🔴 Risk Off"
             return "⚪ 中性"
-
         g_limit, r_limit = thresholds
-
         if key == 'BTC':
-            if val > g_limit: return "🟢 大涨 (Risk On)"
-            if val < r_limit: return "🔴 大跌 (Risk Off)"
+            if val > g_limit:
+                return "🟢 大涨 (Risk On)"
+            if val < r_limit:
+                return "🔴 大跌 (Risk Off)"
             return "⚪ 波动正常"
-
         if key == 'PUT_CALL':
-            if val > g_limit: return "🟢 看空过度 (偏多)"
-            if val < r_limit: return "🔴 看多过度 (偏空)"
+            if val > g_limit:
+                return "🟢 看空过度 (偏多)"
+            if val < r_limit:
+                return "🔴 看多过度 (偏空)"
             return "⚪ 中性"
-
         if key == 'VIX':
-            if val > g_limit: return "🟢 市场恐慌 (偏多)"
-            if val < r_limit: return "🔴 市场自满 (偏空)"
+            if val > g_limit:
+                return "🟢 市场恐慌 (偏多)"
+            if val < r_limit:
+                return "🔴 市场自满 (偏空)"
             return "⚪ 中性"
-
         if cfg.get('inverse'):
-            if val <= g_limit: return "🟢 偏多"
-            if val >= r_limit: return "🔴 偏空"
+            if val <= g_limit:
+                return "🟢 偏多"
+            if val >= r_limit:
+                return "🔴 偏空"
         else:
-            if val >= g_limit: return "🟢 偏多"
-            if val <= r_limit: return "🔴 偏空"
-
+            if val >= g_limit:
+                return "🟢 偏多"
+            if val <= r_limit:
+                return "🔴 偏空"
         return "⚪ 中性"
     except:
         return "⚪ 中性"
@@ -78,9 +84,10 @@ def calculate_summary(results):
     bears = 0
     for key, val in results.items():
         status = get_indicator_status(key, val)
-        if "🟢" in status: bulls += 1
-        if "🔴" in status: bears += 1
-
+        if "🟢" in status:
+            bulls += 1
+        if "🔴" in status:
+            bears += 1
     concl = "⚪ 市场分歧，建议观望"
     if bulls > bears:
         concl = "🟢 市场偏向恐慌/机会 (Risk On)"
@@ -91,37 +98,34 @@ def calculate_summary(results):
 
 def send_discord(results, market_text, summary):
     url = os.environ.get("DISCORD_WEBHOOK_URL")
-    if not url: return
-
+    if not url:
+        return
     bulls = 0
     bears = 0
     for key, val in results.items():
         status = get_indicator_status(key, val)
-        if "🟢" in status: bulls += 1
-        if "🔴" in status: bears += 1
-
+        if "🟢" in status:
+            bulls += 1
+        if "🔴" in status:
+            bears += 1
     embed_color = 0x95a5a6
     thumbnail_url = IMAGES['NEUTRAL']
-
     if bulls > bears:
         embed_color = 0x2ecc71
         thumbnail_url = IMAGES['BULL']
     elif bears > bulls:
         embed_color = 0xe74c3c
         thumbnail_url = IMAGES['BEAR']
-
     categories = {
         'macro': '🌊 宏观与资金 (Macro)',
         'struct': '🏗️ 结构与板块 (Struct)',
         'tech': '🌡️ 技术与情绪 (Tech)',
         'fund': '🐳 筹码与内资 (Fund)'
     }
-
     fields = []
     fields.append({"name": "🔮 市场情绪总结", "value": summary, "inline": False})
     fields.append({"name": "📊 美股大盘指数", "value": market_text, "inline": False})
     fields.append({"name": "\u200b", "value": "\u200b", "inline": False})
-
     cat_items = list(categories.items())
     for i, (cat_key, cat_name) in enumerate(cat_items):
         content = ""
@@ -133,11 +137,9 @@ def send_discord(results, market_text, summary):
                 display_val = f"多{val[0]}% | 空{val[1]}%"
             status = get_indicator_status(key, val)
             content += f"> {cfg['name']}: **{display_val}** ({status})\n"
-
         fields.append({"name": cat_name, "value": content, "inline": False})
         if i < len(cat_items) - 1:
             fields.append({"name": "\u200b", "value": "\u200b", "inline": False})
-
     data = {
         "embeds": [{
             "title": f"📅 每日财经情绪日报 ({datetime.datetime.now().strftime('%Y-%m-%d')})",
@@ -154,24 +156,222 @@ def send_discord(results, market_text, summary):
         print(f"Discord Error: {e}")
 
 
+def generate_html(results, market_text, summary, last_trade_date):
+    """生成简体中文 index.html 仪表板（对应 Discord 内容）"""
+    bulls = 0
+    bears = 0
+    for key, val in results.items():
+        status = get_indicator_status(key, val)
+        if "🟢" in status:
+            bulls += 1
+        if "🔴" in status:
+            bears += 1
+
+    # 颜色主题
+    if bulls > bears:
+        theme_color = "#2ecc71"
+        mood = "偏多 / Risk On"
+    elif bears > bulls:
+        theme_color = "#e74c3c"
+        mood = "偏空 / Risk Off"
+    else:
+        theme_color = "#95a5a6"
+        mood = "中性观望"
+
+    categories = {
+        'macro': '🌊 宏观与资金',
+        'struct': '🏗️ 结构与板块',
+        'tech': '🌡️ 技术与情绪',
+        'fund': '🐳 筹码与内资'
+    }
+
+    # 生成各分类 HTML
+    sections_html = ""
+    for cat_key, cat_name in categories.items():
+        content = ""
+        cat_indicators = {k: v for k, v in INDICATORS.items() if v['category'] == cat_key}
+        for key, cfg in cat_indicators.items():
+            val = results.get(key, "N/A")
+            display_val = val
+            if key == 'AAII' and isinstance(val, tuple) and len(val) >= 3:
+                display_val = f"多 {val[0]}% | 空 {val[1]}%"
+            status = get_indicator_status(key, val)
+            # 状态颜色
+            if "🟢" in status:
+                status_class = "bull"
+            elif "🔴" in status:
+                status_class = "bear"
+            else:
+                status_class = "neutral"
+            content += f"""
+            <div class="indicator">
+                <span class="name">{cfg['name']}</span>
+                <span class="value">{display_val}</span>
+                <span class="status {status_class}">{status}</span>
+            </div>
+            """
+        sections_html += f"""
+        <section class="card">
+            <h2>{cat_name}</h2>
+            {content}
+        </section>
+        """
+
+    html = f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日财经情绪日报 - {last_trade_date}</title>
+    <style>
+        :root {{
+            --theme: {theme_color};
+            --bg: #0f1419;
+            --card: #1a2332;
+            --text: #e7e9ea;
+            --muted: #8b98a5;
+        }}
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 16px;
+            max-width: 900px;
+            margin: 0 auto;
+        }}
+        header {{
+            text-align: center;
+            padding: 24px 16px;
+            border-bottom: 3px solid var(--theme);
+            margin-bottom: 24px;
+        }}
+        header h1 {{
+            font-size: 1.6rem;
+            margin-bottom: 8px;
+        }}
+        .date {{
+            color: var(--muted);
+            font-size: 0.95rem;
+        }}
+        .summary {{
+            background: var(--card);
+            border-left: 5px solid var(--theme);
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }}
+        .summary h2 {{
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: var(--theme);
+        }}
+        .market {{
+            background: var(--card);
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            white-space: pre-wrap;
+            font-family: ui-monospace, monospace;
+            font-size: 0.95rem;
+        }}
+        .card {{
+            background: var(--card);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+        }}
+        .card h2 {{
+            font-size: 1.15rem;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #2f3640;
+        }}
+        .indicator {{
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0;
+            border-bottom: 1px solid #2a3140;
+        }}
+        .indicator:last-child {{ border-bottom: none; }}
+        .name {{
+            flex: 1 1 140px;
+            font-weight: 500;
+        }}
+        .value {{
+            flex: 1 1 100px;
+            color: #aab8c2;
+        }}
+        .status {{
+            flex: 0 0 auto;
+            font-size: 0.9rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }}
+        .status.bull {{ background: rgba(46, 204, 113, 0.15); color: #2ecc71; }}
+        .status.bear {{ background: rgba(231, 76, 60, 0.15); color: #e74c3c; }}
+        .status.neutral {{ background: rgba(149, 165, 166, 0.15); color: #95a5a6; }}
+        footer {{
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.85rem;
+            margin-top: 32px;
+            padding-top: 16px;
+            border-top: 1px solid #2f3640;
+        }}
+        @media (max-width: 600px) {{
+            .indicator {{ flex-direction: column; align-items: flex-start; }}
+            .value, .status {{ margin-left: 0; }}
+        }}
+    </style>
+</head>
+<body>
+    <header>
+        <h1>📅 每日财经情绪日报</h1>
+        <div class="date">交易日：{last_trade_date} · 整体情绪：{mood}</div>
+    </header>
+
+    <div class="summary">
+        <h2>🔮 市场情绪总结</h2>
+        <div>{summary.replace('**', '').replace('\\n', '<br>')}</div>
+    </div>
+
+    <div class="market">
+        <strong>📊 美股大盘指数</strong><br><br>
+        {market_text.replace(chr(10), '<br>')}
+    </div>
+
+    {sections_html}
+
+    <footer>
+        自动更新于美股收盘后 · 数据来源与 Discord 机器人同步<br>
+        Generated by GitHub Actions
+    </footer>
+</body>
+</html>
+"""
+    with open("index.html", "w", encoding="utf-8") as f:
+        f.write(html)
+    print("✅ index.html 已生成（简体中文仪表板）")
+
+
 def save_csv(results):
     try:
         folder = "data"
-        if not os.path.exists(folder): os.makedirs(folder)
+        if not os.path.exists(folder):
+            os.makedirs(folder)
         file = "data/history.csv"
 
-        # 1. 取得市场真实交易日期 (这是防呆的核心)
+        # 1. 取得市场真实交易日期
         try:
-            # 抓取 SPX 历史资料来确认“最新的有效交易日”
             t = yf.Ticker("^GSPC")
-            # 抓 5 天是为了避免长假 (如圣诞+周末)
             hist = t.history(period="5d")
-
             if not hist.empty:
-                # 取得最后一笔资料的日期 (格式: YYYY-MM-DD)
                 last_trade_date = hist.index[-1].strftime("%Y-%m-%d")
             else:
-                # 万一 yfinance 挂了，只好退回到系统日期 (极少发生)
                 print("⚠️ 无法取得市场日期，使用系统日期")
                 last_trade_date = datetime.datetime.now().strftime("%Y-%m-%d")
         except Exception as e:
@@ -180,20 +380,18 @@ def save_csv(results):
 
         print(f"📅 侦测到最新交易日为: {last_trade_date}")
 
-        # 2. 检查 CSV 是否已存在该日期 (去重复)
+        # 2. 检查是否已存在该日期（防呆）
         if os.path.exists(file):
             try:
-                # 读取现有 CSV
                 existing_df = pd.read_csv(file)
-                # 检查 Date 栏位
                 if 'Date' in existing_df.columns:
                     if last_trade_date in existing_df['Date'].values.astype(str):
                         print(f"🛑 日期 {last_trade_date} 已存在，今日不写入 (可能是周末或休市)。")
-                        return  # <--- 关键！直接结束函数，不存档
+                        return last_trade_date  # 返回日期供 HTML 使用
             except Exception as e:
-                print(f"⚠️ 读取 CSV 检查时发生错误 (可能档案损坏，将尝试附加): {e}")
+                print(f"⚠️ 读取 CSV 检查时发生错误: {e}")
 
-        # 3. 准备数据 (AI 训练格式)
+        # 3. 准备数据
         fieldnames = [
             'Date',
             'SPX_Open', 'SPX_High', 'SPX_Low', 'SPX_Close', 'SPX_Volume',
@@ -204,31 +402,24 @@ def save_csv(results):
             'Risk_Ratio', 'IWM_Price', 'SOXX_Price',
             'NAAIM', 'SKEW', 'AAII_Diff', 'Above_200MA'
         ]
-
         market_data = df.fetch_full_market_data()
         short_yield = df.fetch_short_term_yield()
         aaii_raw = results.get('AAII', "")
-        aaii_val = f"{aaii_raw[2]:.1f}" if isinstance(aaii_raw, tuple) and len(
-            aaii_raw) >= 3 else extract_numeric_value(str(aaii_raw))
-
+        aaii_val = f"{aaii_raw[2]:.1f}" if isinstance(aaii_raw, tuple) and len(aaii_raw) >= 3 else extract_numeric_value(str(aaii_raw))
         row = {
-            'Date': last_trade_date,  # [使用真实交易日]
-
+            'Date': last_trade_date,
             'SPX_Open': market_data.get('SPX_Open', ''),
             'SPX_High': market_data.get('SPX_High', ''),
             'SPX_Low': market_data.get('SPX_Low', ''),
             'SPX_Close': market_data.get('SPX_Close', ''),
             'SPX_Volume': market_data.get('SPX_Volume', ''),
-
             'NDX_Open': market_data.get('NDX_Open', ''),
             'NDX_High': market_data.get('NDX_High', ''),
             'NDX_Low': market_data.get('NDX_Low', ''),
             'NDX_Close': market_data.get('NDX_Close', ''),
             'NDX_Volume': market_data.get('NDX_Volume', ''),
-
             '10Y_Yield': extract_numeric_value(str(results.get('BOND_10Y', ''))),
             '3M_Yield': extract_numeric_value(short_yield),
-
             'RSI': extract_numeric_value(str(results.get('RSI', ''))),
             'VIX': extract_numeric_value(str(results.get('VIX', ''))),
             'CNN': extract_numeric_value(str(results.get('CNN', ''))),
@@ -245,13 +436,14 @@ def save_csv(results):
             'Above_200MA': extract_numeric_value(str(results.get('ABOVE_200_DAYS', '')))
         }
 
+        file_exists = os.path.exists(file) and os.stat(file).st_size > 0
         with open(file, 'a', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
-            if not os.path.exists(file) or os.stat(file).st_size == 0:
+            if not file_exists:
                 writer.writeheader()
             writer.writerow(row)
-
         print(f"💾 数据已储存至: {file}")
-
+        return last_trade_date
     except Exception as e:
         print(f"CSV Error: {e}")
+        return datetime.datetime.now().strftime("%Y-%m-%d")
