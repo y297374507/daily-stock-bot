@@ -1,4 +1,4 @@
-# --- main.py (正式运行入口) ---
+# --- main.py ---
 import time
 import data_fetchers as df
 import utils
@@ -11,7 +11,6 @@ def fetch_all_indices():
     for key, cfg in INDICATORS.items():
         print(f"[{key}] 正在抓取 ({cfg['name']})...")
         try:
-            # 根据 config 配置的 type 进行调用
             if cfg['type'] == 'price':
                 val = df.fetch_yf_price(cfg['ticker'], cfg.get('correction', 1.0))
             elif cfg['type'] == 'trend':
@@ -32,30 +31,30 @@ def fetch_all_indices():
 if __name__ == "__main__":
     start_time = time.time()
 
-    # 1. 抓取所有指标数据
+    # 1. 抓取所有指标
     results = fetch_all_indices()
 
-    # 2. 抓取美股大盘指数文本
+    # 2. 大盘文本
     market_text = df.fetch_market_info()
 
-    # 3. 计算市场情绪总结
+    # 3. 情绪总结
     summary = utils.calculate_summary(results)
 
     print("\n" + "=" * 30)
     print(summary)
     print("=" * 30 + "\n")
 
-    # 4. 发送 Discord Embed 消息
+    # 4. 发送 Discord
     print("📢 正在发送 Discord 通知...")
     utils.send_discord(results, market_text, summary)
 
-    # 5. 存档至 CSV（并取得真实交易日）
+    # 5. 写入 CSV
     print("💾 正在写入 CSV 历史数据...")
-    last_trade_date = utils.save_csv(results)
+    utils.save_csv(results)
 
-    # 6. 生成简体中文 index.html 仪表板
-    print("🌐 正在生成 index.html...")
-    utils.generate_html(results, market_text, summary, last_trade_date)
+    # 6. 用 CSV 最新数据生成干净的 index.html
+    print("🌐 正在根据 CSV 生成 index.html...")
+    utils.generate_html_from_csv()
 
     elapsed_time = time.time() - start_time
     print(f"✨ 全部任务完成！总耗时: {elapsed_time:.2f} 秒")
