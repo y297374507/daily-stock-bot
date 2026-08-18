@@ -1,4 +1,4 @@
-# --- utils.py (v6.2.1: 修复 f-string 反斜杠语法错误) ---
+# --- utils.py (v6.3: index.html 直接读取 CSV 最新数据渲染 + 优化排版) ---
 import os
 import requests
 import datetime
@@ -24,7 +24,7 @@ def get_indicator_status(key, value_in):
     value_str = value_in
     if key == 'AAII' and isinstance(value_in, tuple) and len(value_in) >= 3:
         value_str = value_in[2]
-    if not value_str or "Error" in str(value_str) or "N/A" in str(value_str):
+    if not value_str or "Error" in str(value_str) or "N/A" in str(value_str) or str(value_str).lower() == "nan":
         return "⚠️ 无法判读"
     cfg = INDICATORS.get(key)
     if not cfg:
@@ -109,13 +109,13 @@ def send_discord(results, market_text, summary):
         if "🔴" in status:
             bears += 1
     embed_color = 0x95a5a6
-    thumbnail_url = IMAGES['NEUTRAL']
+    thumbnail_url = IMAGES.get('NEUTRAL', '')
     if bulls > bears:
         embed_color = 0x2ecc71
-        thumbnail_url = IMAGES['BULL']
+        thumbnail_url = IMAGES.get('BULL', '')
     elif bears > bulls:
         embed_color = 0xe74c3c
-        thumbnail_url = IMAGES['BEAR']
+        thumbnail_url = IMAGES.get('BEAR', '')
     categories = {
         'macro': '🌊 宏观与资金 (Macro)',
         'struct': '🏗️ 结构与板块 (Struct)',
@@ -156,78 +156,125 @@ def send_discord(results, market_text, summary):
         print(f"Discord Error: {e}")
 
 
-def generate_html(results, market_text, summary, last_trade_date):
-    """生成简体中文 index.html 仪表板（对应 Discord 内容）"""
-    bulls = 0
-    bears = 0
-    for key, val in results.items():
-        status = get_indicator_status(key, val)
-        if "🟢" in status:
-            bulls += 1
-        if "🔴" in status:
-            bears += 1
+def _safe(val):
+    """把 nan / None / 空值 转成「暂无数据」"""
+    if val is None:
+        return "暂无数据"
+    s = str(val).strip()
+    if s == "" or s.lower() in ("nan", "none", "n/a", "null"):
+        return "暂无数据"
+    return s
 
-    # 颜色主题
-    if bulls > bears:
-        theme_color = "#2ecc71"
-        mood = "偏多 / Risk On"
-    elif bears > bulls:
-        theme_color = "#e74c3c"
-        mood = "偏空 / Risk Off"
-    else:
-        theme_color = "#95a5a6"
-        mood = "中性观望"
 
-    categories = {
-        'macro': '🌊 宏观与资金',
-        'struct': '🏗️ 结构与板块',
-        'tech': '🌡️ 技术与情绪',
-        'fund': '🐳 筹码与内资'
-    }
+def generate_html_from_csv():
+    """直接读取 data/history.csv 最新一行数据，生成干净的简体中文 index.html"""
+    file = "data/history.csv"
+    if not os.path.exists(file):
+        print("⚠️ 找不到 history.csv，无法生成 index.html")
+        return
 
-    # 生成各分类 HTML
-    sections_html = ""
-    for cat_key, cat_name in categories.items():
-        content = ""
-        cat_indicators = {k: v for k, v in INDICATORS.items() if v['category'] == cat_key}
-        for key, cfg in cat_indicators.items():
-            val = results.get(key, "N/A")
-            display_val = val
-            if key == 'AAII' and isinstance(val, tuple) and len(val) >= 3:
-                display_val = f"多 {val[0]}% | 空 {val[1]}%"
-            status = get_indicator_status(key, val)
-            # 状态颜色
-            if "🟢" in status:
-                status_class = "bull"
-            elif "🔴" in status:
-                status_class = "bear"
-            else:
-                status_class = "neutral"
-            content += f"""
-            <div class="indicator">
-                <span class="name">{cfg['name']}</span>
-                <span class="value">{display_val}</span>
-                <span class="status {status_class}">{status}</span>
-            </div>
+    try:
+        df_hist = pd.read_csv(file)
+        if df_hist.empty:
+            print("⚠️ history.csv 为空")
+            return
+
+        # 取最新一行
+        latest = df_hist.iloc[-1]
+        trade_date = _safe(latest.get("Date", datetime.datetime.now().strftime("%Y-%m-%d")))
+
+        # 大盘数据
+        spx_close = _safe(latest.get("SPX_Close"))
+        ndx_close = _safe(latest.get("NDX_Close"))
+
+        # 指标映射（CSV列名 → 显示名称 + 分类）
+        indicators_map = [
+            # 宏观与资金
+            {"col": "10Y_Yield", "name": "🇺🇸 10年期国债收益率", "cat": "macro", "unit": "%"},
+            {"col": "DXY", "name": "💵 美元指数 DXY", "cat": "macro", "unit": ""},
+            {"col": "HYG_Price", "name": "💳 高收益债 HYG", "cat": "macro", "unit": ""},
+            {"col": "BTC_Chg", "name": "🪙 比特币涨跌幅", "cat": "macro", "unit": "%"},
+            # 结构与板块
+            {"col": "IWM_Price", "name": "🏢 罗素2000 IWM", "cat": "struct", "unit": ""},
+            {"col": "SOXX_Price", "name": "⚡ 半导体 SOXX", "cat": "struct", "unit": ""},
+            {"col": "Risk_Ratio", "name": "⚖️ 风险胃口", "cat": "struct", "unit": ""},
+            # 技术与情绪
+            {"col": "RSI", "name": "📈 大盘 RSI", "cat": "tech", "unit": ""},
+            {"col": "VIX", "name": "🌪️ VIX 波动率", "cat": "tech", "unit": ""},
+            {"col": "CNN", "name": "😱 CNN 恐惧贪婪", "cat": "tech", "unit": ""},
+            {"col": "Above_200MA", "name": "📊 站上200日线比例", "cat": "tech", "unit": "%"},
+            # 筹码与内资
+            {"col": "NAAIM", "name": "🏦 机构持仓 NAAIM", "cat": "fund", "unit": "%"},
+            {"col": "SKEW", "name": "🦢 黑天鹅 SKEW", "cat": "fund", "unit": ""},
+            {"col": "AAII_Diff", "name": "🐂 散户 AAII 净多头", "cat": "fund", "unit": "%"},
+            {"col": "Put_Call", "name": "⚖️ Put/Call 比率", "cat": "fund", "unit": ""},
+        ]
+
+        # 简单情绪统计（只统计有数值的）
+        bulls = 0
+        bears = 0
+        for item in indicators_map:
+            val = latest.get(item["col"])
+            if pd.isna(val) or str(val).lower() in ("nan", "n/a", ""):
+                continue
+            # 粗略判断（可后续再精细化）
+            try:
+                v = float(val)
+                if item["col"] in ("VIX", "CNN") and v > 50:
+                    bears += 1
+                elif item["col"] in ("VIX", "CNN") and v < 30:
+                    bulls += 1
+                elif item["col"] == "RSI" and v > 70:
+                    bears += 1
+                elif item["col"] == "RSI" and v < 30:
+                    bulls += 1
+            except:
+                pass
+
+        if bulls > bears:
+            theme_color = "#2ecc71"
+            mood = "偏多 / Risk On"
+        elif bears > bulls:
+            theme_color = "#e74c3c"
+            mood = "偏空 / Risk Off"
+        else:
+            theme_color = "#95a5a6"
+            mood = "中性观望"
+
+        # 生成指标 HTML
+        def render_section(cat_name, cat_key):
+            rows = ""
+            for item in indicators_map:
+                if item["cat"] != cat_key:
+                    continue
+                val = _safe(latest.get(item["col"]))
+                unit = item["unit"] if val != "暂无数据" else ""
+                rows += f"""
+                <div class="row">
+                    <div class="label">{item['name']}</div>
+                    <div class="value">{val}{unit}</div>
+                </div>
+                """
+            return f"""
+            <section class="card">
+                <h2>{cat_name}</h2>
+                {rows}
+            </section>
             """
-        sections_html += f"""
-        <section class="card">
-            <h2>{cat_name}</h2>
-            {content}
-        </section>
-        """
 
-    # ===== 关键修复：把带反斜杠的处理移到 f-string 外面 =====
-    summary_html = summary.replace('**', '').replace('\n', '<br>')
-    market_html = market_text.replace('\n', '<br>')
-    # =====================================================
+        sections = (
+            render_section("🌊 宏观与资金", "macro") +
+            render_section("🏗️ 结构与板块", "struct") +
+            render_section("🌡️ 技术与情绪", "tech") +
+            render_section("🐳 筹码与内资", "fund")
+        )
 
-    html = f"""<!DOCTYPE html>
+        html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>每日财经情绪日报 - {last_trade_date}</title>
+    <title>每日财经情绪日报 - {trade_date}</title>
     <style>
         :root {{
             --theme: {theme_color};
@@ -235,132 +282,150 @@ def generate_html(results, market_text, summary, last_trade_date):
             --card: #1a2332;
             --text: #e7e9ea;
             --muted: #8b98a5;
+            --border: #2a3140;
         }}
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
             background: var(--bg);
             color: var(--text);
-            line-height: 1.6;
-            padding: 16px;
-            max-width: 900px;
+            line-height: 1.5;
+            padding: 20px 16px;
+            max-width: 720px;
             margin: 0 auto;
         }}
         header {{
             text-align: center;
-            padding: 24px 16px;
+            padding: 28px 16px 20px;
             border-bottom: 3px solid var(--theme);
             margin-bottom: 24px;
         }}
         header h1 {{
-            font-size: 1.6rem;
-            margin-bottom: 8px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 6px;
         }}
-        .date {{
+        .sub {{
             color: var(--muted);
             font-size: 0.95rem;
         }}
         .summary {{
             background: var(--card);
             border-left: 5px solid var(--theme);
-            padding: 16px 20px;
-            border-radius: 8px;
-            margin-bottom: 24px;
+            border-radius: 10px;
+            padding: 18px 20px;
+            margin-bottom: 20px;
         }}
-        .summary h2 {{
-            font-size: 1.1rem;
-            margin-bottom: 8px;
+        .summary .title {{
+            font-size: 1.05rem;
+            font-weight: 600;
             color: var(--theme);
+            margin-bottom: 8px;
         }}
         .market {{
             background: var(--card);
+            border-radius: 10px;
             padding: 16px 20px;
-            border-radius: 8px;
-            margin-bottom: 24px;
-            white-space: pre-wrap;
-            font-family: ui-monospace, monospace;
-            font-size: 0.95rem;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }}
+        .market-item {{
+            text-align: center;
+        }}
+        .market-item .name {{
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }}
+        .market-item .price {{
+            font-size: 1.25rem;
+            font-weight: 600;
         }}
         .card {{
             background: var(--card);
-            border-radius: 10px;
-            padding: 16px 20px;
+            border-radius: 12px;
+            padding: 16px 18px;
             margin-bottom: 16px;
         }}
         .card h2 {{
-            font-size: 1.15rem;
+            font-size: 1.1rem;
             margin-bottom: 12px;
             padding-bottom: 8px;
-            border-bottom: 1px solid #2f3640;
+            border-bottom: 1px solid var(--border);
         }}
-        .indicator {{
+        .row {{
             display: flex;
-            flex-wrap: wrap;
+            justify-content: space-between;
             align-items: center;
-            gap: 8px;
-            padding: 8px 0;
-            border-bottom: 1px solid #2a3140;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
         }}
-        .indicator:last-child {{ border-bottom: none; }}
-        .name {{
-            flex: 1 1 140px;
-            font-weight: 500;
+        .row:last-child {{
+            border-bottom: none;
+        }}
+        .label {{
+            font-size: 0.95rem;
+            color: #cfd9de;
         }}
         .value {{
-            flex: 1 1 100px;
-            color: #aab8c2;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #ffffff;
         }}
-        .status {{
-            flex: 0 0 auto;
-            font-size: 0.9rem;
-            padding: 2px 8px;
-            border-radius: 4px;
-        }}
-        .status.bull {{ background: rgba(46, 204, 113, 0.15); color: #2ecc71; }}
-        .status.bear {{ background: rgba(231, 76, 60, 0.15); color: #e74c3c; }}
-        .status.neutral {{ background: rgba(149, 165, 166, 0.15); color: #95a5a6; }}
         footer {{
             text-align: center;
             color: var(--muted);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             margin-top: 32px;
             padding-top: 16px;
-            border-top: 1px solid #2f3640;
+            border-top: 1px solid var(--border);
         }}
-        @media (max-width: 600px) {{
-            .indicator {{ flex-direction: column; align-items: flex-start; }}
-            .value, .status {{ margin-left: 0; }}
+        @media (max-width: 480px) {{
+            .market {{
+                grid-template-columns: 1fr;
+            }}
         }}
     </style>
 </head>
 <body>
     <header>
         <h1>📅 每日财经情绪日报</h1>
-        <div class="date">交易日：{last_trade_date} · 整体情绪：{mood}</div>
+        <div class="sub">交易日：{trade_date}　·　整体情绪：{mood}</div>
     </header>
 
     <div class="summary">
-        <h2>🔮 市场情绪总结</h2>
-        <div>{summary_html}</div>
+        <div class="title">🔮 市场情绪总结</div>
+        <div>🟢 多方参考指标 vs 🔴 空方参考指标</div>
+        <div style="margin-top:6px;">👉 {mood}</div>
     </div>
 
     <div class="market">
-        <strong>📊 美股大盘指数</strong><br><br>
-        {market_html}
+        <div class="market-item">
+            <div class="name">S&P 500</div>
+            <div class="price">{spx_close}</div>
+        </div>
+        <div class="market-item">
+            <div class="name">Nasdaq 100</div>
+            <div class="price">{ndx_close}</div>
+        </div>
     </div>
 
-    {sections_html}
+    {sections}
 
     <footer>
-        自动更新于美股收盘后 · 数据来源与 Discord 机器人同步<br>
-        Generated by GitHub Actions
+        数据来源：history.csv 最新交易日<br>
+        由 GitHub Actions 在美股收盘后自动更新
     </footer>
 </body>
 </html>
 """
-    with open("index.html", "w", encoding="utf-8") as f:
-        f.write(html)
-    print("✅ index.html 已生成（简体中文仪表板）")
+        with open("index.html", "w", encoding="utf-8") as f:
+            f.write(html)
+        print(f"✅ index.html 已根据 CSV 最新数据生成（交易日 {trade_date}）")
+    except Exception as e:
+        print(f"❌ 生成 index.html 失败: {e}")
 
 
 def save_csv(results):
@@ -392,7 +457,7 @@ def save_csv(results):
                 if 'Date' in existing_df.columns:
                     if last_trade_date in existing_df['Date'].values.astype(str):
                         print(f"🛑 日期 {last_trade_date} 已存在，今日不写入 (可能是周末或休市)。")
-                        return last_trade_date  # 返回日期供 HTML 使用
+                        return last_trade_date
             except Exception as e:
                 print(f"⚠️ 读取 CSV 检查时发生错误: {e}")
 
