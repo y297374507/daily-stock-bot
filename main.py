@@ -1,4 +1,4 @@
-# --- dev_main.py (测试用的入口文件) ---
+# --- main.py (正式运行入口) ---
 import time
 import data_fetchers as df
 import utils
@@ -7,8 +7,7 @@ from config import INDICATORS
 
 def fetch_all_indices():
     results = {}
-    print("🚀 [Dev Test] 开始依序抓取数据...")
-
+    print("🚀 开始依序抓取数据...")
     for key, cfg in INDICATORS.items():
         print(f"[{key}] 正在抓取 ({cfg['name']})...")
         try:
@@ -23,13 +22,10 @@ def fetch_all_indices():
                 val = cfg['func']()
             else:
                 val = "N/A"
-
             results[key] = val
-
         except Exception as e:
             print(f"❌ {key} 发生异常: {e}")
             results[key] = "N/A"
-
     return results
 
 
@@ -53,9 +49,13 @@ if __name__ == "__main__":
     print("📢 正在发送 Discord 通知...")
     utils.send_discord(results, market_text, summary)
 
-    # 5. 存档至 CSV (AI 训练数据)
+    # 5. 存档至 CSV（并取得真实交易日）
     print("💾 正在写入 CSV 历史数据...")
-    utils.save_csv(results)
+    last_trade_date = utils.save_csv(results)
+
+    # 6. 生成简体中文 index.html 仪表板
+    print("🌐 正在生成 index.html...")
+    utils.generate_html(results, market_text, summary, last_trade_date)
 
     elapsed_time = time.time() - start_time
     print(f"✨ 全部任务完成！总耗时: {elapsed_time:.2f} 秒")
