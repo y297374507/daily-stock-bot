@@ -2,49 +2,50 @@ name: Daily Stock Index Fetcher
 
 on:
   schedule:
-    # UTC 時間 00:00 對應台灣時間 08:00
-    - cron: '0 0 * * *'
-  # 讓你可以在網頁上手動按按鈕測試
-  workflow_dispatch:
+    # 美股收盘后执行（UTC 21:30 ≈ 美东 16:30 冬令 / 17:30 夏令）
+    - cron: '30 21 * * *'
+  workflow_dispatch:   # 允许手动触发测试
+
+permissions:
+  contents: write      # 允许 bot 推送 commit
 
 jobs:
   run-analysis:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code (下載程式碼)
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}   # 使用默认 token 即可
 
-      - name: Set up Python (設定 Python 環境)
-        uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
-      - name: Install dependencies (安裝套件)
+      - name: Install dependencies
         run: |
           pip install -r requirements.txt
 
-      - name: Run script (執行並發送通知)
+      - name: Run script (抓取 + 发送 Discord + 生成 index.html)
         env:
-          # 將剛剛設定的 Secret 注入到環境變數中
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           python main.py
-          
-      - name: Commit and Push Data (提交並保存數據)
+
+      - name: Commit and Push Data + HTML
         run: |
-          # 1. 設定機器人身分 (這會顯示在 Commit 紀錄中)
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
-          
-          # 2. 拉取最新的遠端程式碼 (避免多人同時寫入產生衝突)
-          git pull
-          
-          # 3. 將新產生的 csv 加入版控
-          git add data/history.csv
-          
-          # 4. 提交變更 (如果沒有變更，例如假日沒開盤，則略過不報錯)
-          git commit -m "📈 Auto-update daily stock history" || exit 0
-          
-          # 5. 推送回儲存庫
+
+          # 拉取最新代码避免冲突
+          git pull --rebase || true
+
+          # 加入需要保存的文件
+          git add data/history.csv index.html || true
+
+          # 有变更才 commit（假日或无新数据时不报错）
+          git commit -m "📈 Auto-update daily stock history & index.html ($(date -u +%Y-%m-%d))" || exit 0
+
           git push
