@@ -59,9 +59,32 @@ body {
 .market-item {
   display: flex;
   justify-content: space-between;
-  padding: 6px 0;
+  align-items: center;
+  padding: 8px 0;
   font-size: 0.95rem;
+  border-bottom: 1px solid var(--border);
 }
+.market-item:last-child { border-bottom: none; }
+.market-left {
+  display: flex;
+  flex-direction: column;
+}
+.market-name {
+  color: #cfd9de;
+  font-size: 0.9rem;
+}
+.market-price {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+.chg {
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-left: 6px;
+}
+.chg.bull { color: var(--bull); }
+.chg.bear { color: var(--bear); }
+.chg.neutral { color: var(--muted); }
 .section {
   background: var(--card);
   border-radius: 12px;
@@ -80,24 +103,24 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  padding: 8px 0;
+  padding: 9px 0;
   border-bottom: 1px solid var(--border);
   font-size: 0.9rem;
 }
 .item:last-child { border-bottom: none; }
 .name {
-  flex: 1 1 110px;
+  flex: 1 1 100px;
   color: #cfd9de;
 }
 .val {
   flex: 0 0 auto;
   font-weight: 500;
-  min-width: 60px;
+  min-width: 55px;
   text-align: right;
 }
 .status {
   flex: 0 0 auto;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   padding: 2px 6px;
   border-radius: 4px;
 }
@@ -127,12 +150,18 @@ footer {
   <div class="card">
     <div class="card-title">📊 美股大盘指数</div>
     <div class="market-item">
-      <span>S&P 500</span>
-      <span>7745.06</span>
+      <div class="market-left">
+        <span class="market-name">S&P 500</span>
+        <span class="market-price">7745.06</span>
+      </div>
+      <span class="chg bear">-0.52%</span>
     </div>
     <div class="market-item">
-      <span>Nasdaq 100</span>
-      <span>29995.38</span>
+      <div class="market-left">
+        <span class="market-name">Nasdaq 100</span>
+        <span class="market-price">29995.38</span>
+      </div>
+      <span class="chg bear">-0.17%</span>
     </div>
   </div>
 
@@ -140,81 +169,96 @@ footer {
                 <div class="item">
                     <span class="name">🇺🇸 10年债</span>
                     <span class="val">4.72%</span>
+                    <span class="chg bull">+0.43%</span>
                     <span class="status bear">偏空</span>
                 </div>
                 <div class="item">
                     <span class="name">💵 美元 DXY</span>
                     <span class="val">99.56</span>
+                    <span class="chg bear">-0.08%</span>
                     <span class="status neutral">中性</span>
                 </div>
                 <div class="item">
                     <span class="name">💳 高收债 HYG</span>
                     <span class="val">79.61</span>
+                    <span class="chg bear">-0.13%</span>
                     <span class="status neutral">中性</span>
                 </div>
                 <div class="item">
-                    <span class="name">🪙 比特币</span>
+                    <span class="name">₿ 比特币</span>
                     <span class="val">2.34%</span>
+                    
                     <span class="status neutral">波动正常</span>
                 </div></div><div class="section"><div class="section-title">🏗️ 结构与板块 (Struct)</div>
                 <div class="item">
                     <span class="name">🏢 罗素2000</span>
                     <span class="val">304.06</span>
+                    <span class="chg bear">-0.34%</span>
                     <span class="status neutral">中性</span>
                 </div>
                 <div class="item">
                     <span class="name">⚡ 半导体 SOXX</span>
                     <span class="val">559.12</span>
+                    <span class="chg bull">+1.58%</span>
                     <span class="status neutral">中性</span>
                 </div>
                 <div class="item">
                     <span class="name">⚖️ 风险胃口</span>
                     <span class="val">1.38</span>
+                    <span class="chg bull">+0.73%</span>
                     <span class="status neutral">中性</span>
                 </div></div><div class="section"><div class="section-title">🌡️ 技术与情绪 (Tech)</div>
                 <div class="item">
                     <span class="name">📈 大盘 RSI</span>
                     <span class="val">62.0</span>
+                    
                     <span class="status neutral">中性</span>
                 </div>
                 <div class="item">
                     <span class="name">🌪️ VIX 波动</span>
                     <span class="val">15.19</span>
+                    <span class="chg bull">+6.60%</span>
                     <span class="status neutral">中性</span>
                 </div>
                 <div class="item">
                     <span class="name">😱 CNN 情绪</span>
                     <span class="val">60</span>
+                    <span class="chg bear">-7.69%</span>
                     <span class="status bear">偏空 (过热)</span>
                 </div>
                 <div class="item">
                     <span class="name">📊 >200日线</span>
                     <span class="val">—</span>
+                    
                     <span class="status neutral">—</span>
                 </div></div><div class="section"><div class="section-title">🐳 筹码与内资 (Fund)</div>
                 <div class="item">
                     <span class="name">🏦 机构持仓</span>
                     <span class="val">—</span>
+                    
                     <span class="status neutral">—</span>
                 </div>
                 <div class="item">
                     <span class="name">🦢 黑天鹅 SKEW</span>
                     <span class="val">142.91</span>
+                    <span class="chg bull">+3.29%</span>
                     <span class="status neutral">中性</span>
                 </div>
                 <div class="item">
                     <span class="name">🐂 散户 AAII</span>
                     <span class="val">—</span>
+                    
                     <span class="status neutral">—</span>
                 </div>
                 <div class="item">
                     <span class="name">⚖️ Put/Call</span>
                     <span class="val">—</span>
+                    
                     <span class="status neutral">—</span>
                 </div></div>
 
   <footer>
-    数据来源：history.csv<br>
+    数据来源：history.csv　·　较上一日涨跌幅已标注<br>
     美股收盘后自动更新 · 手机友好
   </footer>
 </body>
