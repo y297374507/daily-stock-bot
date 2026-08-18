@@ -6,240 +6,241 @@
     <title>每日财经情绪日报 - 2026-08-17</title>
     <style>
         :root {
-            --theme: #e74c3c;
+            --theme: #95a5a6;
             --bg: #0f1419;
             --card: #1a2332;
             --text: #e7e9ea;
             --muted: #8b98a5;
+            --border: #2a3140;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
             background: var(--bg);
             color: var(--text);
-            line-height: 1.6;
-            padding: 16px;
-            max-width: 900px;
+            line-height: 1.5;
+            padding: 20px 16px;
+            max-width: 720px;
             margin: 0 auto;
         }
         header {
             text-align: center;
-            padding: 24px 16px;
+            padding: 28px 16px 20px;
             border-bottom: 3px solid var(--theme);
             margin-bottom: 24px;
         }
         header h1 {
-            font-size: 1.6rem;
-            margin-bottom: 8px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 6px;
         }
-        .date {
+        .sub {
             color: var(--muted);
             font-size: 0.95rem;
         }
         .summary {
             background: var(--card);
             border-left: 5px solid var(--theme);
-            padding: 16px 20px;
-            border-radius: 8px;
-            margin-bottom: 24px;
+            border-radius: 10px;
+            padding: 18px 20px;
+            margin-bottom: 20px;
         }
-        .summary h2 {
-            font-size: 1.1rem;
-            margin-bottom: 8px;
+        .summary .title {
+            font-size: 1.05rem;
+            font-weight: 600;
             color: var(--theme);
+            margin-bottom: 8px;
         }
         .market {
             background: var(--card);
+            border-radius: 10px;
             padding: 16px 20px;
-            border-radius: 8px;
-            margin-bottom: 24px;
-            white-space: pre-wrap;
-            font-family: ui-monospace, monospace;
-            font-size: 0.95rem;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .market-item {
+            text-align: center;
+        }
+        .market-item .name {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+        .market-item .price {
+            font-size: 1.25rem;
+            font-weight: 600;
         }
         .card {
             background: var(--card);
-            border-radius: 10px;
-            padding: 16px 20px;
+            border-radius: 12px;
+            padding: 16px 18px;
             margin-bottom: 16px;
         }
         .card h2 {
-            font-size: 1.15rem;
+            font-size: 1.1rem;
             margin-bottom: 12px;
             padding-bottom: 8px;
-            border-bottom: 1px solid #2f3640;
+            border-bottom: 1px solid var(--border);
         }
-        .indicator {
+        .row {
             display: flex;
-            flex-wrap: wrap;
+            justify-content: space-between;
             align-items: center;
-            gap: 8px;
-            padding: 8px 0;
-            border-bottom: 1px solid #2a3140;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
         }
-        .indicator:last-child { border-bottom: none; }
-        .name {
-            flex: 1 1 140px;
-            font-weight: 500;
+        .row:last-child {
+            border-bottom: none;
+        }
+        .label {
+            font-size: 0.95rem;
+            color: #cfd9de;
         }
         .value {
-            flex: 1 1 100px;
-            color: #aab8c2;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #ffffff;
         }
-        .status {
-            flex: 0 0 auto;
-            font-size: 0.9rem;
-            padding: 2px 8px;
-            border-radius: 4px;
-        }
-        .status.bull { background: rgba(46, 204, 113, 0.15); color: #2ecc71; }
-        .status.bear { background: rgba(231, 76, 60, 0.15); color: #e74c3c; }
-        .status.neutral { background: rgba(149, 165, 166, 0.15); color: #95a5a6; }
         footer {
             text-align: center;
             color: var(--muted);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             margin-top: 32px;
             padding-top: 16px;
-            border-top: 1px solid #2f3640;
+            border-top: 1px solid var(--border);
         }
-        @media (max-width: 600px) {
-            .indicator { flex-direction: column; align-items: flex-start; }
-            .value, .status { margin-left: 0; }
+        @media (max-width: 480px) {
+            .market {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
     <header>
         <h1>📅 每日财经情绪日报</h1>
-        <div class="date">交易日：2026-08-17 · 整体情绪：偏空 / Risk Off</div>
+        <div class="sub">交易日：2026-08-17　·　整体情绪：中性观望</div>
     </header>
 
     <div class="summary">
-        <h2>🔮 市场情绪总结</h2>
-        <div>🟢 多方: 1 | 🔴 空方: 6<br>👉 🔴 市场偏向贪婪/风险 (Risk Off)</div>
+        <div class="title">🔮 市场情绪总结</div>
+        <div>🟢 多方参考指标 vs 🔴 空方参考指标</div>
+        <div style="margin-top:6px;">👉 中性观望</div>
     </div>
 
     <div class="market">
-        <strong>📊 美股大盘指数</strong><br><br>
-        📉 **S&P 500**: nan (+nan%)<br>📉 **Nasdaq 100**: nan (+nan%)
+        <div class="market-item">
+            <div class="name">S&P 500</div>
+            <div class="price">7745.06</div>
+        </div>
+        <div class="market-item">
+            <div class="name">Nasdaq 100</div>
+            <div class="price">29995.38</div>
+        </div>
     </div>
 
     
-        <section class="card">
-            <h2>🌊 宏观与资金</h2>
+            <section class="card">
+                <h2>🌊 宏观与资金</h2>
+                
+                <div class="row">
+                    <div class="label">🇺🇸 10年期国债收益率</div>
+                    <div class="value">4.72%</div>
+                </div>
+                
+                <div class="row">
+                    <div class="label">💵 美元指数 DXY</div>
+                    <div class="value">99.56</div>
+                </div>
+                
+                <div class="row">
+                    <div class="label">💳 高收益债 HYG</div>
+                    <div class="value">79.61</div>
+                </div>
+                
+                <div class="row">
+                    <div class="label">🪙 比特币涨跌幅</div>
+                    <div class="value">2.34%</div>
+                </div>
+                
+            </section>
             
-            <div class="indicator">
-                <span class="name">🇺🇸 10年债</span>
-                <span class="value">4.70%</span>
-                <span class="status bear">🔴 偏空</span>
-            </div>
+            <section class="card">
+                <h2>🏗️ 结构与板块</h2>
+                
+                <div class="row">
+                    <div class="label">🏢 罗素2000 IWM</div>
+                    <div class="value">304.06</div>
+                </div>
+                
+                <div class="row">
+                    <div class="label">⚡ 半导体 SOXX</div>
+                    <div class="value">559.12</div>
+                </div>
+                
+                <div class="row">
+                    <div class="label">⚖️ 风险胃口</div>
+                    <div class="value">1.38</div>
+                </div>
+                
+            </section>
             
-            <div class="indicator">
-                <span class="name">💵 美元 DXY</span>
-                <span class="value">99.64</span>
-                <span class="status bull">🟢 偏多</span>
-            </div>
+            <section class="card">
+                <h2>🌡️ 技术与情绪</h2>
+                
+                <div class="row">
+                    <div class="label">📈 大盘 RSI</div>
+                    <div class="value">62.0</div>
+                </div>
+                
+                <div class="row">
+                    <div class="label">🌪️ VIX 波动率</div>
+                    <div class="value">15.19</div>
+                </div>
+                
+                <div class="row">
+                    <div class="label">😱 CNN 恐惧贪婪</div>
+                    <div class="value">60</div>
+                </div>
+                
+                <div class="row">
+                    <div class="label">📊 站上200日线比例</div>
+                    <div class="value">暂无数据</div>
+                </div>
+                
+            </section>
             
-            <div class="indicator">
-                <span class="name">💳 高收债 HYG</span>
-                <span class="value">nan (Below)</span>
-                <span class="status bear">🔴 资金流出</span>
-            </div>
+            <section class="card">
+                <h2>🐳 筹码与内资</h2>
+                
+                <div class="row">
+                    <div class="label">🏦 机构持仓 NAAIM</div>
+                    <div class="value">暂无数据</div>
+                </div>
+                
+                <div class="row">
+                    <div class="label">🦢 黑天鹅 SKEW</div>
+                    <div class="value">142.91</div>
+                </div>
+                
+                <div class="row">
+                    <div class="label">🐂 散户 AAII 净多头</div>
+                    <div class="value">暂无数据</div>
+                </div>
+                
+                <div class="row">
+                    <div class="label">⚖️ Put/Call 比率</div>
+                    <div class="value">暂无数据</div>
+                </div>
+                
+            </section>
             
-            <div class="indicator">
-                <span class="name">🪙 比特币</span>
-                <span class="value">-0.58%</span>
-                <span class="status neutral">⚪ 波动正常</span>
-            </div>
-            
-        </section>
-        
-        <section class="card">
-            <h2>🏗️ 结构与板块</h2>
-            
-            <div class="indicator">
-                <span class="name">🏢 罗素2000</span>
-                <span class="value">nan (Below)</span>
-                <span class="status bear">🔴 转弱/空头</span>
-            </div>
-            
-            <div class="indicator">
-                <span class="name">⚡ 半导体 SOXX</span>
-                <span class="value">nan (Below)</span>
-                <span class="status bear">🔴 转弱/空头</span>
-            </div>
-            
-            <div class="indicator">
-                <span class="name">⚖️ 风险胃口</span>
-                <span class="value">nan (↘️)</span>
-                <span class="status bear">🔴 Risk Off</span>
-            </div>
-            
-        </section>
-        
-        <section class="card">
-            <h2>🌡️ 技术与情绪</h2>
-            
-            <div class="indicator">
-                <span class="name">📈 大盘 RSI</span>
-                <span class="value">66.8</span>
-                <span class="status neutral">⚪ 中性</span>
-            </div>
-            
-            <div class="indicator">
-                <span class="name">🌪️ VIX 波动</span>
-                <span class="value">15.92</span>
-                <span class="status neutral">⚪ 中性</span>
-            </div>
-            
-            <div class="indicator">
-                <span class="name">😱 CNN 情绪</span>
-                <span class="value">59</span>
-                <span class="status bear">🔴 偏空</span>
-            </div>
-            
-            <div class="indicator">
-                <span class="name">📊 >200日线</span>
-                <span class="value">N/A</span>
-                <span class="status neutral">⚠️ 无法判读</span>
-            </div>
-            
-        </section>
-        
-        <section class="card">
-            <h2>🐳 筹码与内资</h2>
-            
-            <div class="indicator">
-                <span class="name">🏦 机构持仓</span>
-                <span class="value">N/A</span>
-                <span class="status neutral">⚠️ 无法判读</span>
-            </div>
-            
-            <div class="indicator">
-                <span class="name">🦢 黑天鹅 SKEW</span>
-                <span class="value">138.36</span>
-                <span class="status neutral">⚪ 中性</span>
-            </div>
-            
-            <div class="indicator">
-                <span class="name">🐂 散户 AAII</span>
-                <span class="value">N/A</span>
-                <span class="status neutral">⚠️ 无法判读</span>
-            </div>
-            
-            <div class="indicator">
-                <span class="name">⚖️ Put/Call</span>
-                <span class="value">N/A</span>
-                <span class="status neutral">⚠️ 无法判读</span>
-            </div>
-            
-        </section>
-        
 
     <footer>
-        自动更新于美股收盘后 · 数据来源与 Discord 机器人同步<br>
-        Generated by GitHub Actions
+        数据来源：history.csv 最新交易日<br>
+        由 GitHub Actions 在美股收盘后自动更新
     </footer>
 </body>
 </html>
