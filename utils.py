@@ -1,4 +1,4 @@
-# --- utils.py (v6.2: 美股收盘后 + index.html 简体中文仪表板) ---
+# --- utils.py (v6.2.1: 修复 f-string 反斜杠语法错误) ---
 import os
 import requests
 import datetime
@@ -217,6 +217,11 @@ def generate_html(results, market_text, summary, last_trade_date):
         </section>
         """
 
+    # ===== 关键修复：把带反斜杠的处理移到 f-string 外面 =====
+    summary_html = summary.replace('**', '').replace('\n', '<br>')
+    market_html = market_text.replace('\n', '<br>')
+    # =====================================================
+
     html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -336,12 +341,12 @@ def generate_html(results, market_text, summary, last_trade_date):
 
     <div class="summary">
         <h2>🔮 市场情绪总结</h2>
-        <div>{summary.replace('**', '').replace('\\n', '<br>')}</div>
+        <div>{summary_html}</div>
     </div>
 
     <div class="market">
         <strong>📊 美股大盘指数</strong><br><br>
-        {market_text.replace(chr(10), '<br>')}
+        {market_html}
     </div>
 
     {sections_html}
