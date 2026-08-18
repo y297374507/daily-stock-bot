@@ -1,4 +1,4 @@
-# --- utils.py (v6.5: Discord 风格 + 简体中文 + 手机优化) ---
+# --- utils.py (v6.6: 增加涨跌幅对比 + 比特币图标优化) ---
 import os
 import requests
 import datetime
@@ -165,6 +165,24 @@ def _safe(val):
     return s
 
 
+def _calc_change(curr, prev):
+    """计算涨跌幅，返回 (显示文字, css class)"""
+    try:
+        c = float(curr)
+        p = float(prev)
+        if p == 0:
+            return "—", "neutral"
+        chg = (c - p) / p * 100
+        if chg > 0:
+            return f"+{chg:.2f}%", "bull"
+        elif chg < 0:
+            return f"{chg:.2f}%", "bear"
+        else:
+            return "0.00%", "neutral"
+    except:
+        return "—", "neutral"
+
+
 def _get_status(col, val):
     """返回 (显示文字, css class)"""
     if val == "—":
@@ -223,13 +241,11 @@ def _get_status(col, val):
         if v <= 50: return "偏多", "bull"
         if v >= 90: return "偏空", "bear"
         return "中性", "neutral"
-    elif col == "HYG_Price":
-        return "中性", "neutral"
     return "中性", "neutral"
 
 
 def generate_html_from_csv():
-    """Discord 风格 + 简体中文 + 手机优化"""
+    """Discord 风格 + 简体中文 + 涨跌幅对比 + 手机优化"""
     file = "data/history.csv"
     if not os.path.exists(file):
         print("⚠️ 找不到 history.csv")
@@ -242,32 +258,40 @@ def generate_html_from_csv():
             return
 
         latest = df_hist.iloc[-1]
+        prev = df_hist.iloc[-2] if len(df_hist) >= 2 else None
+
         trade_date = _safe(latest.get("Date"))
 
+        # 大盘涨跌幅
         spx = _safe(latest.get("SPX_Close"))
         ndx = _safe(latest.get("NDX_Close"))
+        spx_chg, spx_cls = ("—", "neutral")
+        ndx_chg, ndx_cls = ("—", "neutral")
+        if prev is not None:
+            spx_chg, spx_cls = _calc_change(latest.get("SPX_Close"), prev.get("SPX_Close"))
+            ndx_chg, ndx_cls = _calc_change(latest.get("NDX_Close"), prev.get("NDX_Close"))
 
-        # 指标定义
+        # 指标定义（增加 need_chg 标记哪些需要显示涨跌幅）
         indicators = [
             # 宏观与资金
-            {"col": "10Y_Yield", "name": "🇺🇸 10年债", "cat": "macro", "unit": "%"},
-            {"col": "DXY", "name": "💵 美元 DXY", "cat": "macro", "unit": ""},
-            {"col": "HYG_Price", "name": "💳 高收债 HYG", "cat": "macro", "unit": ""},
-            {"col": "BTC_Chg", "name": "🪙 比特币", "cat": "macro", "unit": "%"},
+            {"col": "10Y_Yield", "name": "🇺🇸 10年债", "cat": "macro", "unit": "%", "need_chg": True},
+            {"col": "DXY", "name": "💵 美元 DXY", "cat": "macro", "unit": "", "need_chg": True},
+            {"col": "HYG_Price", "name": "💳 高收债 HYG", "cat": "macro", "unit": "", "need_chg": True},
+            {"col": "BTC_Chg", "name": "₿ 比特币", "cat": "macro", "unit": "%", "need_chg": False},  # 本身已是涨跌幅
             # 结构与板块
-            {"col": "IWM_Price", "name": "🏢 罗素2000", "cat": "struct", "unit": ""},
-            {"col": "SOXX_Price", "name": "⚡ 半导体 SOXX", "cat": "struct", "unit": ""},
-            {"col": "Risk_Ratio", "name": "⚖️ 风险胃口", "cat": "struct", "unit": ""},
+            {"col": "IWM_Price", "name": "🏢 罗素2000", "cat": "struct", "unit": "", "need_chg": True},
+            {"col": "SOXX_Price", "name": "⚡ 半导体 SOXX", "cat": "struct", "unit": "", "need_chg": True},
+            {"col": "Risk_Ratio", "name": "⚖️ 风险胃口", "cat": "struct", "unit": "", "need_chg": True},
             # 技术与情绪
-            {"col": "RSI", "name": "📈 大盘 RSI", "cat": "tech", "unit": ""},
-            {"col": "VIX", "name": "🌪️ VIX 波动", "cat": "tech", "unit": ""},
-            {"col": "CNN", "name": "😱 CNN 情绪", "cat": "tech", "unit": ""},
-            {"col": "Above_200MA", "name": "📊 >200日线", "cat": "tech", "unit": "%"},
+            {"col": "RSI", "name": "📈 大盘 RSI", "cat": "tech", "unit": "", "need_chg": False},
+            {"col": "VIX", "name": "🌪️ VIX 波动", "cat": "tech", "unit": "", "need_chg": True},
+            {"col": "CNN", "name": "😱 CNN 情绪", "cat": "tech", "unit": "", "need_chg": True},
+            {"col": "Above_200MA", "name": "📊 >200日线", "cat": "tech", "unit": "%", "need_chg": True},
             # 筹码与内资
-            {"col": "NAAIM", "name": "🏦 机构持仓", "cat": "fund", "unit": "%"},
-            {"col": "SKEW", "name": "🦢 黑天鹅 SKEW", "cat": "fund", "unit": ""},
-            {"col": "AAII_Diff", "name": "🐂 散户 AAII", "cat": "fund", "unit": "%"},
-            {"col": "Put_Call", "name": "⚖️ Put/Call", "cat": "fund", "unit": ""},
+            {"col": "NAAIM", "name": "🏦 机构持仓", "cat": "fund", "unit": "%", "need_chg": True},
+            {"col": "SKEW", "name": "🦢 黑天鹅 SKEW", "cat": "fund", "unit": "", "need_chg": True},
+            {"col": "AAII_Diff", "name": "🐂 散户 AAII", "cat": "fund", "unit": "%", "need_chg": True},
+            {"col": "Put_Call", "name": "⚖️ Put/Call", "cat": "fund", "unit": "", "need_chg": True},
         ]
 
         # 统计多方空方
@@ -298,10 +322,18 @@ def generate_html_from_csv():
                 val = _safe(latest.get(item["col"]))
                 unit = item["unit"] if val != "—" else ""
                 status_text, status_cls = _get_status(item["col"], val)
+
+                # 计算涨跌幅
+                chg_html = ""
+                if item["need_chg"] and prev is not None and val != "—":
+                    chg_text, chg_cls = _calc_change(latest.get(item["col"]), prev.get(item["col"]))
+                    chg_html = f'<span class="chg {chg_cls}">{chg_text}</span>'
+
                 html += f'''
                 <div class="item">
                     <span class="name">{item["name"]}</span>
                     <span class="val">{val}{unit}</span>
+                    {chg_html}
                     <span class="status {status_cls}">{status_text}</span>
                 </div>'''
             html += '</div>'
@@ -375,9 +407,32 @@ body {{
 .market-item {{
   display: flex;
   justify-content: space-between;
-  padding: 6px 0;
+  align-items: center;
+  padding: 8px 0;
   font-size: 0.95rem;
+  border-bottom: 1px solid var(--border);
 }}
+.market-item:last-child {{ border-bottom: none; }}
+.market-left {{
+  display: flex;
+  flex-direction: column;
+}}
+.market-name {{
+  color: #cfd9de;
+  font-size: 0.9rem;
+}}
+.market-price {{
+  font-weight: 600;
+  font-size: 1.05rem;
+}}
+.chg {{
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-left: 6px;
+}}
+.chg.bull {{ color: var(--bull); }}
+.chg.bear {{ color: var(--bear); }}
+.chg.neutral {{ color: var(--muted); }}
 .section {{
   background: var(--card);
   border-radius: 12px;
@@ -396,24 +451,24 @@ body {{
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  padding: 8px 0;
+  padding: 9px 0;
   border-bottom: 1px solid var(--border);
   font-size: 0.9rem;
 }}
 .item:last-child {{ border-bottom: none; }}
 .name {{
-  flex: 1 1 110px;
+  flex: 1 1 100px;
   color: #cfd9de;
 }}
 .val {{
   flex: 0 0 auto;
   font-weight: 500;
-  min-width: 60px;
+  min-width: 55px;
   text-align: right;
 }}
 .status {{
   flex: 0 0 auto;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   padding: 2px 6px;
   border-radius: 4px;
 }}
@@ -443,19 +498,25 @@ footer {{
   <div class="card">
     <div class="card-title">📊 美股大盘指数</div>
     <div class="market-item">
-      <span>S&P 500</span>
-      <span>{spx}</span>
+      <div class="market-left">
+        <span class="market-name">S&P 500</span>
+        <span class="market-price">{spx}</span>
+      </div>
+      <span class="chg {spx_cls}">{spx_chg}</span>
     </div>
     <div class="market-item">
-      <span>Nasdaq 100</span>
-      <span>{ndx}</span>
+      <div class="market-left">
+        <span class="market-name">Nasdaq 100</span>
+        <span class="market-price">{ndx}</span>
+      </div>
+      <span class="chg {ndx_cls}">{ndx_chg}</span>
     </div>
   </div>
 
   {sections}
 
   <footer>
-    数据来源：history.csv<br>
+    数据来源：history.csv　·　较上一日涨跌幅已标注<br>
     美股收盘后自动更新 · 手机友好
   </footer>
 </body>
@@ -463,7 +524,7 @@ footer {{
 """
         with open("index.html", "w", encoding="utf-8") as f:
             f.write(html)
-        print(f"✅ index.html 已生成（Discord 风格 · 简体中文 · {trade_date}）")
+        print(f"✅ index.html 已生成（含涨跌幅对比 · {trade_date}）")
     except Exception as e:
         print(f"❌ 生成 index.html 失败: {e}")
 
